@@ -1,0 +1,14 @@
+numpy>=1.26,<2.2 
+pandas>=2.2,<3 
+scikit-learn>=1.4 
+mlflow>=3.9,<3.11 
+openai>=1.30 
+tiktoken>=0.7 
+python-dotenv>=1.0
+
+tensorflow==2.19.*
+keras>=3.11,<4
+
+python-multipart
+seaborn
+torch
