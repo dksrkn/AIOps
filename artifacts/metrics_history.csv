@@ -1,0 +1,4 @@
+timestamp,model_version,rmse,threshold,status,retrained,previous_baseline_rmse,epochs_ran,validation_rows,promoted,uploaded_rows
+2026-04-07T02:21:28,20260407_022128,232.77177496154897,250.0,retrained_promoted,True,,15.0,16800.0,True,
+2026-04-07T02:27:02,20260407_022128,232.77177496154897,250.0,predict_only,False,,,,,16800.0
+2026-04-07T02:31:36,20260407_022128,232.77177496154897,250.0,predict_only,False,,,,,16800.0
