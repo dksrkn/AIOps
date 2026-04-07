@@ -159,35 +159,62 @@ def prepare_full_frame(train_df: pd.DataFrame, building_df: pd.DataFrame):
 
     return df, categories, feature_cols, scale_feature_cols
 
+def split_train60_into_train40_inner_valid20(train60_df: pd.DataFrame):
+    train40_list, inner_valid20_list = [], []
 
-def split_train_valid_test(df: pd.DataFrame):
-    train60_list, valid20_list, test20_list = [], [], []
-
-    for _, g in df.groupby("건물번호"):
+    for _, g in train60_df.groupby("건물번호"):
         g = g.sort_values("datetime").reset_index(drop=True)
         n = len(g)
 
-        idx60 = int(n * 0.6)
-        idx80 = int(n * 0.8)
+        # train60 내부를 2:1로 나누면 전체 기준 40:20
+        idx = int(n * (2 / 3))
 
-        train60_list.append(g.iloc[:idx60].copy())
-        valid20_list.append(g.iloc[idx60:idx80].copy())
-        test20_list.append(g.iloc[idx80:].copy())
+        train40_list.append(g.iloc[:idx].copy())
+        inner_valid20_list.append(g.iloc[idx:].copy())
 
-    train60_df = pd.concat(train60_list, ignore_index=True)
-    valid20_df = pd.concat(valid20_list, ignore_index=True)
-    test20_df = pd.concat(test20_list, ignore_index=True)
+    train40_df = pd.concat(train40_list, ignore_index=True)
+    inner_valid20_df = pd.concat(inner_valid20_list, ignore_index=True)
 
-    return train60_df, valid20_df, test20_df
+    return train40_df, inner_valid20_df
+
+def prepare_and_split(df):
+    df = df.sort_values("timestamp") 
+
+    n = len(df)
+
+    train40 = df.iloc[: int(n * 0.4)]
+    test20_1 = df.iloc[int(n * 0.4): int(n * 0.6)]
+
+    train60 = df.iloc[: int(n * 0.6)]
+    test20_2 = df.iloc[int(n * 0.6): int(n * 0.8)]
+
+    train80 = df.iloc[: int(n * 0.8)]
+    test20_3 = df.iloc[int(n * 0.8):]
+
+    return {
+        "train40": train40,
+        "test20_1": test20_1,
+        "train60": train60,
+        "test20_2": test20_2,
+        "train80": train80,
+        "test20_3": test20_3,
+    }
 
 
-def save_split_frames(train60_df, valid20_df, test20_df):
+def save_split_frames(train60_df, valid20_df, test20_df, train40_df=None, inner_valid20_df=None):
     train60_df.to_csv(TRAIN60_SPLIT_PATH, index=False, encoding="utf-8-sig")
     valid20_df.to_csv(VALID20_SPLIT_PATH, index=False, encoding="utf-8-sig")
 
     train80_df = pd.concat([train60_df, valid20_df], ignore_index=True)
     train80_df.to_csv(TRAIN80_SPLIT_PATH, index=False, encoding="utf-8-sig")
+
     test20_df.to_csv(TEST20_SPLIT_PATH, index=False, encoding="utf-8-sig")
+
+    if train40_df is not None:
+        train40_df.to_csv("data/train40.csv", index=False, encoding="utf-8-sig")
+
+    if inner_valid20_df is not None:
+        inner_valid20_df.to_csv("data/inner_valid20.csv", index=False, encoding="utf-8-sig")
 
 
 def scale_frames(train_raw_df, eval_raw_df, feature_cols):
@@ -388,6 +415,25 @@ def load_model_metadata():
     with open(METADATA_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def split_train_valid_test(df: pd.DataFrame):
+    train60_list, valid20_list, test20_list = [], [], []
+
+    for _, g in df.groupby("건물번호"):
+        g = g.sort_values("datetime").reset_index(drop=True)
+        n = len(g)
+
+        idx60 = int(n * 0.6)
+        idx80 = int(n * 0.8)
+
+        train60_list.append(g.iloc[:idx60].copy())
+        valid20_list.append(g.iloc[idx60:idx80].copy())
+        test20_list.append(g.iloc[idx80:].copy())
+
+    train60_df = pd.concat(train60_list, ignore_index=True)
+    valid20_df = pd.concat(valid20_list, ignore_index=True)
+    test20_df = pd.concat(test20_list, ignore_index=True)
+
+    return train60_df, valid20_df, test20_df
 
 def prepare_and_split(train_df, building_df, status_dict=None):
     set_seed(RANDOM_SEED)
@@ -400,15 +446,63 @@ def prepare_and_split(train_df, building_df, status_dict=None):
         status_dict["error"] = None
 
     full_df, categories, feature_cols, scale_feature_cols = prepare_full_frame(train_df, building_df)
-    train60_df, valid20_df, test20_df = split_train_valid_test(full_df)
-    save_split_frames(train60_df, valid20_df, test20_df)
 
+    # 전체를 40 / 20 / 20 / 20 순서로 분할
+    train40_list, test20_1_list, test20_2_list, test20_3_list = [], [], [], []
+
+    for _, g in full_df.groupby("건물번호"):
+        g = g.sort_values("datetime").reset_index(drop=True)
+        n = len(g)
+
+        idx40 = int(n * 0.4)
+        idx60 = int(n * 0.6)
+        idx80 = int(n * 0.8)
+
+        train40_list.append(g.iloc[:idx40].copy())
+        test20_1_list.append(g.iloc[idx40:idx60].copy())
+        test20_2_list.append(g.iloc[idx60:idx80].copy())
+        test20_3_list.append(g.iloc[idx80:].copy())
+
+    train40_df = pd.concat(train40_list, ignore_index=True)
+    test20_1_df = pd.concat(test20_1_list, ignore_index=True)
+    test20_2_df = pd.concat(test20_2_list, ignore_index=True)
+    test20_3_df = pd.concat(test20_3_list, ignore_index=True)
+
+    train60_df = pd.concat([train40_df, test20_1_df], ignore_index=True)
+    train80_df = pd.concat([train60_df, test20_2_df], ignore_index=True)
+
+    train40_df.to_csv("data/train40.csv", index=False, encoding="utf-8-sig")
+    test20_1_df.to_csv("data/test20_1.csv", index=False, encoding="utf-8-sig")
+    train60_df.to_csv("data/train60.csv", index=False, encoding="utf-8-sig")
+    test20_2_df.to_csv("data/test20_2.csv", index=False, encoding="utf-8-sig")
+    train80_df.to_csv("data/train80.csv", index=False, encoding="utf-8-sig")
+    test20_3_df.to_csv("data/test20_3.csv", index=False, encoding="utf-8-sig")
+    
     return {
         "full_df": full_df,
         "categories": categories,
         "feature_cols": scale_feature_cols,
+        "train40_df": train40_df,
+        "test20_1_df": test20_1_df,
         "train60_df": train60_df,
-        "valid20_df": valid20_df,
-        "train80_df": pd.concat([train60_df, valid20_df], ignore_index=True),
-        "test20_df": test20_df,
+        "test20_2_df": test20_2_df,
+        "train80_df": train80_df,
+        "test20_3_df": test20_3_df,
     }
+
+def split_train60_into_train40_inner_valid20(train60_df: pd.DataFrame):
+    train40_list, inner_valid20_list = [], []
+
+    for _, g in train60_df.groupby("건물번호"):
+        g = g.sort_values("datetime").reset_index(drop=True)
+        n = len(g)
+
+        idx = int(n * (2 / 3))
+
+        train40_list.append(g.iloc[:idx].copy())
+        inner_valid20_list.append(g.iloc[idx:].copy())
+
+    train40_df = pd.concat(train40_list, ignore_index=True)
+    inner_valid20_df = pd.concat(inner_valid20_list, ignore_index=True)
+
+    return train40_df, inner_valid20_df

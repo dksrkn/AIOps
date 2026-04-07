@@ -7,6 +7,7 @@ __pycache__/
 # Virtual env
 venv/
 .env
+.venv/ 
 
 # Data
 dataset/
@@ -28,3 +29,8 @@ logs/
 
 # VSCode
 .vscode/
+
+/models2
+/models3
+/models4
+/models5

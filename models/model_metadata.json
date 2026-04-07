@@ -35,7 +35,7 @@
     "lag1_kwh"
   ],
   "seq_len": 24,
-  "baseline_rmse": 367.9793005387667,
+  "baseline_rmse": 351.35334333829815,
   "device": "cpu",
   "model_stage": "retrained_80"
 }
