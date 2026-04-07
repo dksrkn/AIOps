@@ -9,9 +9,6 @@ venv/
 .env
 .venv/ 
 
-# Data
-dataset/
-*.csv
 
 # Model artifacts
 artifacts/
