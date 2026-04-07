@@ -1,0 +1,616 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #f5f7fb;
+  --surface-soft: #f8fafc;
+  --line: rgba(15, 23, 42, 0.08);
+  --text: #0f172a;
+  --sub: #64748b;
+  --primary: #2563eb;
+  --primary-soft: rgba(37, 99, 235, 0.1);
+  --success: #16a34a;
+  --warning: #f59e0b;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: #ffffff;
+}
+
+.page-shell {
+  width: 100%;
+}
+
+.app-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 24px 40px;
+}
+
+/* 상단 바만 카드 느낌 유지 */
+.topbar {
+  height: 84px;
+  background: #f7f9fc;
+  border-radius: 18px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.topbar-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.topbar-badge {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.topbar-status {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #e9edff;
+  color: #4338ca;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 전체 본문은 박스 없이 페이지처럼 */
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 28px;
+  align-items: start;
+}
+
+.main-chart-area,
+.kpi-sidebar,
+.upload-toolbar,
+.flow-line-section,
+.approval-strip,
+.table-section,
+.report-page {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-title-row h2,
+.flow-line-section h2,
+.table-section h2,
+.report-page h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* 차트 */
+.chart-compare.modern {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.chart-box {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border: none;
+}
+
+.chart-box h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 300px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.chart-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.result-summary-inline {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+
+.metric-label {
+  font-size: 13px;
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.metric-chip strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.summary-message-inline {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: #334155;
+  line-height: 1.6;
+}
+
+/* KPI는 오른쪽 세로 리스트 */
+.kpi-sidebar {
+  min-width: 0;
+}
+
+.kpi-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kpi-item {
+  background: transparent;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.kpi-name {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+/* 업로드 */
+.upload-toolbar {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ghost-upload-btn {
+  height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ghost-upload-btn:hover {
+  transform: translateY(-1px);
+}
+
+.upload-dropdown {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid #cfe0ff;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+input[type="file"] {
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+button {
+  height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.status-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.status-inline.compact {
+  margin-left: 2px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.1);
+}
+
+/* 섹션 간 구분선 */
+.upload-toolbar,
+.flow-line-section,
+.table-section,
+.report-page {
+  position: relative;
+  padding-top: 26px;
+  margin-top: 26px;
+}
+
+/* overview 아래도 자연스럽게 구분 */
+.overview-grid {
+  padding-bottom: 26px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* 처리 흐름은 살짝 배경 톤 차이 */
+.modern-pipeline {
+  padding: 14px 0 2px;
+}
+
+/* 테이블 헤더 구분 강화 */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+th {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+/* 보고서 시작부 강조 */
+.report-document-header {
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+  border-bottom: 1.5px solid rgba(15, 23, 42, 0.1);
+}
+
+/* 각 보고서 챕터 사이 은은한 구분 */
+.report-chapter {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+}
+
+.report-chapter:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* KPI도 완전 박스보다 줄 구분 느낌으로 */
+.kpi-item {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0;
+  padding: 12px 0 14px;
+}
+
+.kpi-item:last-child {
+  border-bottom: none;
+}
+
+/* 차트 영역도 얇은 상하 라인만 */
+.main-chart-area {
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* summary 메시지 박스감 줄이고 라인형으로 */
+.summary-message-inline {
+  margin-top: 14px;
+  padding: 14px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* 처리 흐름 */
+.flow-line-section {
+  margin-top: 28px;
+}
+
+.modern-pipeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.step {
+  min-width: 100px;
+  padding: 10px 14px;
+  text-align: center;
+  border-radius: 999px;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  transition: 0.25s ease;
+}
+
+.step-arrow {
+  font-size: 18px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.step.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: rgba(37, 99, 235, 0.16);
+}
+
+.step.done {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--success);
+  border-color: rgba(22, 163, 74, 0.14);
+}
+
+.step.warn {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+/* 승인 */
+.approval-strip {
+  margin-top: 24px;
+  padding: 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.approval-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 테이블 */
+.table-section {
+  margin-top: 28px;
+}
+
+.table-wrap {
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+}
+
+th,
+td {
+  padding: 14px 16px;
+  text-align: center;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+th {
+  background: transparent;
+  font-weight: 700;
+  color: #334155;
+}
+
+/* 보고서 */
+.report-page {
+  margin-top: 32px;
+}
+
+.report-document {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+}
+
+.report-document-header {
+  margin-bottom: 28px;
+  border-bottom: none;
+}
+
+.report-meta {
+  margin-bottom: 8px;
+}
+
+.report-document-header h3 {
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
+.report-date {
+  margin-top: 10px;
+  color: var(--sub);
+  font-size: 14px;
+}
+
+.report-chapter {
+  margin-bottom: 28px;   /* 👉 챕터 간 간격 */
+}
+
+.report-chapter h4 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.report-chapter p {
+  line-height: 1.9;       /* 👉 이게 핵심 */
+  margin-bottom: 12px;    /* 👉 문단 간격 */
+}
+
+.report-chapter ul {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.report-chapter li {
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+
+#retrainMessage {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-compare.modern {
+    grid-template-columns: 1fr;
+  }
+
+  .approval-strip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-page {
+    padding: 18px 16px 32px;
+  }
+
+  .topbar {
+    height: auto;
+    min-height: 84px;
+    padding: 18px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .topbar h1 {
+    font-size: 24px;
+  }
+
+  .chart-canvas-wrap {
+    height: 250px;
+  }
+
+  .report-document-header h3 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .upload-dropdown {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .step {
+    width: 100%;
+  }
+
+  .step-arrow {
+    display: none;
+  }
+
+  .approval-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

@@ -15,10 +15,17 @@ VALID20_SPLIT_PATH = DATA_DIR / "valid20_split.csv"
 TRAIN80_SPLIT_PATH = DATA_DIR / "train80_split.csv"
 TEST20_SPLIT_PATH = DATA_DIR / "test20_split.csv"
 
+# 운영 모델 경로
 MODEL_STATE_PATH = MODELS_DIR / "current_model.pt"
 FEATURE_SCALER_PATH = MODELS_DIR / "feature_scaler.pkl"
 TARGET_SCALER_PATH = MODELS_DIR / "target_scaler.pkl"
 METADATA_PATH = MODELS_DIR / "model_metadata.json"
+
+# 후보 모델 경로
+CANDIDATE_MODEL_STATE_PATH = MODELS_DIR / "candidate_model.pt"
+CANDIDATE_FEATURE_SCALER_PATH = MODELS_DIR / "candidate_feature_scaler.pkl"
+CANDIDATE_TARGET_SCALER_PATH = MODELS_DIR / "candidate_target_scaler.pkl"
+CANDIDATE_METADATA_PATH = MODELS_DIR / "candidate_model_metadata.json"
 
 METRICS_HISTORY_PATH = ARTIFACTS_DIR / "metrics_history.csv"
 
@@ -39,4 +46,3 @@ RANDOM_SEED = 40
 
 for p in [DATA_DIR, MODELS_DIR, ARTIFACTS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
-

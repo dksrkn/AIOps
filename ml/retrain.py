@@ -1,3 +1,6 @@
+import json
+import pickle
+import torch
 import pandas as pd
 
 from backend.config import (
@@ -5,18 +8,39 @@ from backend.config import (
     BUILDING_PATH,
     PLOTS_DIR,
     RMSE_THRESHOLD,
+    CANDIDATE_MODEL_STATE_PATH,
+    CANDIDATE_FEATURE_SCALER_PATH,
+    CANDIDATE_TARGET_SCALER_PATH,
+    CANDIDATE_METADATA_PATH,
 )
 from ml.train import (
     prepare_and_split,
     fit_model_on_split,
     evaluate_bundle_on_raw,
-    save_model_artifacts,
 )
 from ml.report import save_avg_actual_vs_predicted_plot
 
 
-def retrain(status_dict=None):
-    train_df = pd.read_csv(TRAIN_PATH)
+def save_candidate_artifacts(model, scaler_x, scaler_y, metadata):
+    # 후보 모델 state_dict 저장
+    torch.save(model.state_dict(), CANDIDATE_MODEL_STATE_PATH)
+
+    # 후보 스케일러 저장
+    with open(CANDIDATE_FEATURE_SCALER_PATH, "wb") as f:
+        pickle.dump(scaler_x, f)
+
+    with open(CANDIDATE_TARGET_SCALER_PATH, "wb") as f:
+        pickle.dump(scaler_y, f)
+
+    # 후보 메타데이터 저장
+    with open(CANDIDATE_METADATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+
+def retrain(train_df=None, status_dict=None):
+    if train_df is None:
+        train_df = pd.read_csv(TRAIN_PATH)
+
     building_df = pd.read_csv(BUILDING_PATH)
 
     split_info = prepare_and_split(train_df, building_df, status_dict=status_dict)
@@ -27,9 +51,7 @@ def retrain(status_dict=None):
     train80_df = split_info["train80_df"]
     test20_df = split_info["test20_df"]
 
-    # ---------------------------
-    # 1. 초기 모델: 60으로 학습, 20으로 validation
-    # ---------------------------
+    # 1. 초기 모델 학습
     if status_dict is not None:
         status_dict["stage"] = "initial_training_60"
         status_dict["progress_pct"] = 5.0
@@ -44,7 +66,7 @@ def retrain(status_dict=None):
 
     initial_val_rmse = initial_bundle["rmse"]
 
-    # 초기 모델을 test20에서 평가
+    # 2. 초기 모델 test 평가
     if status_dict is not None:
         status_dict["stage"] = "initial_testing_20"
         status_dict["progress_pct"] = 90.0
@@ -55,31 +77,21 @@ def retrain(status_dict=None):
         feature_cols=feature_cols,
     )
 
-    # 초기 모델 저장
-    initial_metadata = initial_bundle["metadata"].copy()
-    initial_metadata["baseline_rmse"] = initial_test_rmse
-    initial_metadata["model_stage"] = "initial_60"
-    save_model_artifacts(
-        initial_bundle["model"],
-        initial_bundle["scaler_x"],
-        initial_bundle["scaler_y"],
-        initial_metadata,
-    )
-
     timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+
     initial_plot_path = save_avg_actual_vs_predicted_plot(
         df=initial_test_result_df,
         save_path=PLOTS_DIR / f"initial_60_test20_avg_{timestamp}.png",
         title="Initial 60 Train - Test20 Actual vs Predicted",
     )
 
-    # ---------------------------
-    # 2. validation RMSE threshold 넘으면 80으로 재학습
-    # ---------------------------
+    # 3. threshold 초과 시 재학습
     retrained = False
     promoted = False
     retrain_test_rmse = None
     retrain_plot_path = None
+    retrain_test_result_df = None
+    retrain_bundle = None
 
     if initial_val_rmse > RMSE_THRESHOLD:
         retrained = True
@@ -108,14 +120,15 @@ def retrain(status_dict=None):
             title="Retrain 80 Train - Test20 Actual vs Predicted",
         )
 
-        # 재학습 모델이 더 좋으면 교체
-        if retrain_test_rmse < initial_test_rmse:
+        # 4. 재학습 모델이 더 좋으면 후보 모델로 저장
+        if retrain_test_rmse is not None and retrain_test_rmse < initial_test_rmse:
             promoted = True
+
             retrain_metadata = retrain_bundle["metadata"].copy()
             retrain_metadata["baseline_rmse"] = retrain_test_rmse
-            retrain_metadata["model_stage"] = "retrained_80"
+            retrain_metadata["model_stage"] = "candidate"
 
-            save_model_artifacts(
+            save_candidate_artifacts(
                 retrain_bundle["model"],
                 retrain_bundle["scaler_x"],
                 retrain_bundle["scaler_y"],
@@ -126,7 +139,7 @@ def retrain(status_dict=None):
         status_dict["stage"] = "completed"
         status_dict["progress_pct"] = 100.0
 
-    active_rmse = retrain_test_rmse if promoted else initial_test_rmse
+    active_rmse = retrain_test_rmse if promoted and retrain_test_rmse is not None else initial_test_rmse
 
     return {
         "status": "completed",
@@ -138,4 +151,10 @@ def retrain(status_dict=None):
         "active_rmse": active_rmse,
         "initial_plot": initial_plot_path,
         "retrain_plot": retrain_plot_path,
+        "initial_test_result_df": initial_test_result_df,
+        "retrain_test_result_df": retrain_test_result_df,
+        "initial_bundle": initial_bundle,
+        "retrain_bundle": retrain_bundle,
+        "feature_cols": feature_cols,
+        "timestamp": timestamp,
     }

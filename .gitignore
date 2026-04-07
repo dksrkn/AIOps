@@ -1,4 +1,30 @@
-.venv
-__pycache__
-models2/
-models3/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env
+
+# Data
+dataset/
+*.csv
+
+# Model artifacts
+artifacts/
+*.keras
+*.pkl
+
+# Logs
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Mac
+.DS_Store
+
+# VSCode
+.vscode/
