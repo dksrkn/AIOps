@@ -233,12 +233,23 @@ def scale_frames(train_raw_df, eval_raw_df, feature_cols):
     return train_df, eval_df, scaler_x, scaler_y
 
 
-def fit_model_on_split(train_raw_df, eval_raw_df, feature_cols, status_dict=None, stage_name="training"):
+def fit_model_on_split(
+    train_raw_df,
+    eval_raw_df,
+    feature_cols,
+    status_dict=None,
+    stage_name="training",
+    progress_start=20.0,
+    progress_end=85.0,
+    max_epochs=None,
+):
+    effective_epochs = max_epochs or EPOCHS
+
     if status_dict is not None:
         status_dict["stage"] = stage_name
-        status_dict["progress_pct"] = 20.0
+        status_dict["progress_pct"] = progress_start
         status_dict["current_epoch"] = 0
-        status_dict["total_epochs"] = EPOCHS
+        status_dict["total_epochs"] = effective_epochs
         status_dict["error"] = None
 
     train_df, eval_df, scaler_x, scaler_y = scale_frames(train_raw_df, eval_raw_df, feature_cols)
@@ -274,7 +285,7 @@ def fit_model_on_split(train_raw_df, eval_raw_df, feature_cols, status_dict=None
     patience_count = 0
     history = {"train_loss": [], "eval_loss": []}
 
-    for epoch in range(EPOCHS):
+    for epoch in range(effective_epochs):
         model.train()
         train_losses = []
 
@@ -310,7 +321,11 @@ def fit_model_on_split(train_raw_df, eval_raw_df, feature_cols, status_dict=None
 
         if status_dict is not None:
             status_dict["current_epoch"] = epoch + 1
-            status_dict["progress_pct"] = round(20 + ((epoch + 1) / EPOCHS) * 65, 2)
+            span = max(progress_end - progress_start, 0.0)
+            status_dict["progress_pct"] = round(
+                progress_start + ((epoch + 1) / effective_epochs) * span,
+                2,
+            )
             status_dict["stage"] = stage_name
 
         if mean_eval_loss < best_loss:

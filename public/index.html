@@ -27,6 +27,7 @@
           <div class="chart-compare modern">
             <div class="chart-box">
               <h3>Before</h3>
+              <p class="chart-caption">업로드한 테스트 데이터에 대한 현재 운영 모델 예측 결과</p>
               <div class="chart-canvas-wrap">
                 <canvas id="chartBefore"></canvas>
               </div>
@@ -34,6 +35,7 @@
 
             <div class="chart-box">
               <h3>After</h3>
+              <p class="chart-caption">train40 + 업로드 데이터 재학습 후 test20_2 평가 결과</p>
               <div class="chart-canvas-wrap">
                 <canvas id="chartAfter"></canvas>
               </div>
@@ -42,8 +44,16 @@
 
           <div class="result-summary-inline">
             <div class="metric-chip">
-              <span class="metric-label">RMSE</span>
-              <strong id="rmseValue">-</strong>
+              <span class="metric-label">Before RMSE</span>
+              <strong id="rmseBeforeValue">-</strong>
+            </div>
+            <div class="metric-chip">
+              <span class="metric-label">After RMSE</span>
+              <strong id="rmseAfterValue">-</strong>
+            </div>
+            <div class="metric-chip">
+              <span class="metric-label">RMSE 변화</span>
+              <strong id="rmseDeltaValue">-</strong>
             </div>
             <div class="metric-chip">
               <span class="metric-label">상태</span>
@@ -96,18 +106,17 @@
       </section>
 
       <section class="upload-toolbar">
-          <button id="uploadBtn" type="button">파일 업로드</button>
+        <button id="uploadBtn" type="button">파일 업로드</button>
 
-          <div class="upload-dropdown" id="uploadPanel" style="display:none;">
-            <label class="file-label" for="csvFile">CSV 선택</label>
-            <input type="file" id="csvFile" accept=".csv" />
-            <button id="analyzeBtn" type="button">분석 실행</button>
-          </div>
+        <div class="upload-dropdown" id="uploadPanel" style="display:none;">
+          <label class="file-label" for="csvFile">CSV 선택</label>
+          <input type="file" id="csvFile" accept=".csv" />
+          <button id="analyzeBtn" type="button">분석 실행</button>
+        </div>
 
-          <div class="status-inline compact">
-            <span class="status-dot"></span>
-            <span id="uploadStatus">업로드 대기 중</span>
-          </div>
+        <div class="status-inline compact">
+          <span class="status-dot"></span>
+          <span id="uploadStatus">업로드 대기 중</span>
         </div>
       </section>
 
@@ -157,7 +166,7 @@
         </div>
       </section>
 
-      <section class="sectionreport-page" id="report-section">
+      <section class="report-page" id="report-section">
         <h2>LLM 분석 보고서</h2>
 
         <div class="report-document">

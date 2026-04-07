@@ -3,12 +3,16 @@ import json
 import pickle
 import shutil
 import time
+from pathlib import Path
+
+import numpy as np
 import torch
 import pandas as pd
 
 from backend.config import (
     TRAIN_PATH,
     BUILDING_PATH,
+    PREVIEW_DAYS,
     METADATA_PATH,
     MODEL_STATE_PATH,
     FEATURE_SCALER_PATH,
@@ -17,9 +21,10 @@ from backend.config import (
     CANDIDATE_FEATURE_SCALER_PATH,
     CANDIDATE_TARGET_SCALER_PATH,
     CANDIDATE_METADATA_PATH,
+    TARGET_COL,
 )
 from backend.llm_report import generate_report
-from ml.predict import predict
+from ml.predict import predict, load_model_bundle, predict_with_bundle
 from ml.evaluate import evaluate, should_retrain
 from ml.retrain import retrain
 
@@ -35,6 +40,56 @@ training_status = {
     "candidate_model_exists": False,
     "candidate_result": None,
 }
+latest_upload_context = {
+    "input_df": None,
+    "result_before": None,
+    "rmse_before": None,
+}
+
+
+def _to_plain_value(obj):
+    if isinstance(obj, dict):
+        return {k: _to_plain_value(v) for k, v in obj.items()}
+
+    if isinstance(obj, list):
+        return [_to_plain_value(v) for v in obj]
+
+    if isinstance(obj, tuple):
+        return [_to_plain_value(v) for v in obj]
+
+    if isinstance(obj, set):
+        return [_to_plain_value(v) for v in obj]
+
+    if isinstance(obj, Path):
+        return str(obj)
+
+    if isinstance(obj, pd.DataFrame):
+        return [
+            {k: _to_plain_value(v) for k, v in row.items()}
+            for row in obj.to_dict(orient="records")
+        ]
+
+    if isinstance(obj, pd.Series):
+        return [_to_plain_value(v) for v in obj.tolist()]
+
+    if isinstance(obj, np.ndarray):
+        return [_to_plain_value(v) for v in obj.tolist()]
+
+    if isinstance(obj, np.generic):
+        return obj.item()
+
+    if isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+
+    if isinstance(obj, float):
+        if pd.isna(obj) or np.isinf(obj):
+            return None
+
+    if isinstance(obj, (int, str, bool)) or obj is None:
+        return obj
+
+    # Fall back to string for any remaining non-JSON-safe objects.
+    return str(obj)
 
 
 def _reset_training_status():
@@ -45,6 +100,12 @@ def _reset_training_status():
     training_status["total_epochs"] = 0
     training_status["last_result"] = None
     training_status["error"] = None
+
+
+def _set_latest_upload_context(input_df: pd.DataFrame, result_df: pd.DataFrame, rmse_before):
+    latest_upload_context["input_df"] = input_df.copy()
+    latest_upload_context["result_before"] = result_df.copy() if isinstance(result_df, pd.DataFrame) else None
+    latest_upload_context["rmse_before"] = rmse_before
 
 
 def _candidate_files_exist():
@@ -63,27 +124,69 @@ def run_prediction(input_df: pd.DataFrame):
     return result_df
 
 
-def _make_preview_rows(result_df: pd.DataFrame, limit: int = 12):
+def _make_preview_rows(result_df: pd.DataFrame, limit: int = 12, include_predicted: bool = True):
     if result_df is None or result_df.empty:
         return []
 
+    preview_df = result_df.copy()
+
+    rename_map = {
+        "datetime": "date_time",
+        TARGET_COL: "actual",
+        "pred_kwh": "predicted",
+    }
+    preview_df = preview_df.rename(columns=rename_map)
+
     required_cols = ["date_time", "actual", "predicted"]
-    if not all(col in result_df.columns for col in required_cols):
+    if not all(col in preview_df.columns for col in required_cols):
         return []
 
-    preview_df = result_df[required_cols].head(limit).copy()
-    return preview_df.to_dict(orient="records")
+    preview_df = preview_df[required_cols].copy()
+    preview_df["date_time"] = pd.to_datetime(preview_df["date_time"])
+
+    if not include_predicted:
+        preview_df["predicted"] = None
+
+    if include_predicted:
+        preview_df = preview_df.dropna(subset=["actual", "predicted"]).copy()
+    else:
+        preview_df = preview_df.dropna(subset=["actual"]).copy()
+
+    if preview_df.empty:
+        return []
+
+    avg_df = (
+        preview_df.groupby("date_time", as_index=False)[["actual", "predicted"]]
+        .mean()
+        .sort_values("date_time")
+    )
+
+    day_limit = PREVIEW_DAYS * 24
+    if limit is None:
+        limit = day_limit
+    else:
+        limit = min(limit, day_limit)
+
+    avg_df = avg_df.head(limit).copy()
+    avg_df["date_time"] = avg_df["date_time"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    return avg_df.to_dict(orient="records")
 
 
 def _make_error_by_building_type(result_df: pd.DataFrame):
     if result_df is None or result_df.empty:
         return []
 
+    temp = result_df.copy().rename(columns={
+        "건물유형": "building_type",
+        TARGET_COL: "actual",
+        "pred_kwh": "predicted",
+    })
+
     required_cols = {"building_type", "actual", "predicted"}
-    if not required_cols.issubset(result_df.columns):
+    if not required_cols.issubset(temp.columns):
         return []
 
-    temp = result_df.copy()
     temp["abs_error"] = (temp["actual"] - temp["predicted"]).abs()
     temp["sq_error"] = (temp["actual"] - temp["predicted"]) ** 2
 
@@ -115,22 +218,28 @@ def _make_kpi(result_df: pd.DataFrame):
             "dominant_variables": ["기온", "습도", "요일/시간대"],
         }
 
+    temp = result_df.copy().rename(columns={
+        "건물유형": "building_type",
+        TARGET_COL: "actual",
+        "pred_kwh": "predicted",
+    })
+
     predicted_sum = None
     predicted_peak = None
     confidence = None
     dominant_building_type = None
 
-    if "predicted" in result_df.columns:
-        predicted_sum = float(result_df["predicted"].sum())
-        predicted_peak = float(result_df["predicted"].max())
+    if "predicted" in temp.columns:
+        predicted_sum = float(temp["predicted"].sum())
+        predicted_peak = float(temp["predicted"].max())
 
-    if "building_type" in result_df.columns:
-        mode_series = result_df["building_type"].mode()
+    if "building_type" in temp.columns:
+        mode_series = temp["building_type"].mode()
         dominant_building_type = mode_series.iloc[0] if not mode_series.empty else None
 
-    if {"actual", "predicted"}.issubset(result_df.columns):
-        mae = float((result_df["actual"] - result_df["predicted"]).abs().mean())
-        actual_mean = float(result_df["actual"].mean()) if len(result_df) > 0 else 0.0
+    if {"actual", "predicted"}.issubset(temp.columns):
+        mae = float((temp["actual"] - temp["predicted"]).abs().mean())
+        actual_mean = float(temp["actual"].mean()) if len(temp) > 0 else 0.0
         if actual_mean > 0:
             confidence = max(0.0, min(100.0, 100.0 - (mae / actual_mean) * 100.0))
 
@@ -144,12 +253,22 @@ def _make_kpi(result_df: pd.DataFrame):
     }
 
 
-def _build_message(retrain_required, retrain_executed, candidate_model_exists, rmse_before, rmse_after):
+def _build_message(
+    retrain_required,
+    retrain_executed,
+    candidate_model_exists,
+    rmse_before,
+    rmse_after,
+    auto_retrain=False,
+):
     if rmse_before is None:
         return "RMSE를 계산할 수 없습니다."
 
     if not retrain_required:
         return "현재 모델 성능이 기준 이내로 유지되어 재학습이 필요하지 않습니다."
+
+    if not retrain_executed and not auto_retrain:
+        return "재학습이 필요합니다. 사용자에게 재학습 실행 여부를 확인해주세요."
 
     if not retrain_executed:
         return "재학습이 필요하지만 현재 학습이 이미 진행 중입니다."
@@ -183,7 +302,7 @@ def _make_report_payload(
     }
 
 
-def run_prediction_and_monitor(input_df: pd.DataFrame):
+def run_prediction_and_monitor(input_df: pd.DataFrame, auto_retrain: bool = False):
     _reset_training_status()
 
     train_df = pd.read_csv(TRAIN_PATH)
@@ -191,13 +310,14 @@ def run_prediction_and_monitor(input_df: pd.DataFrame):
 
     current_result_df = predict(input_df, train_df, building_df)
     current_rmse = evaluate(current_result_df)
+    _set_latest_upload_context(input_df, current_result_df, current_rmse)
 
     retrain_required = current_rmse is not None and should_retrain(current_rmse)
     retrain_executed = False
     model_replaced = False
 
-    preview_before = _make_preview_rows(current_result_df)
-    preview_after = preview_before
+    preview_before = _make_preview_rows(current_result_df, limit=PREVIEW_DAYS * 24)
+    preview_after = []
 
     rmse_before = current_rmse
     rmse_after = current_rmse
@@ -207,47 +327,29 @@ def run_prediction_and_monitor(input_df: pd.DataFrame):
     training_status["candidate_model_exists"] = False
     training_status["candidate_result"] = None
 
-    if retrain_required:
+    if retrain_required and auto_retrain:
         try:
             training_status["running"] = True
             training_status["stage"] = "preparing"
             training_status["progress_pct"] = 0.0
             training_status["error"] = None
 
-            retrain_result = retrain(train_df=input_df.copy(), status_dict=training_status)
+            retrain_result = retrain(upload_df=input_df.copy(), status_dict=training_status)
             retrain_executed = True
 
             training_status["last_result"] = retrain_result
 
-            initial_test_rmse = retrain_result.get("initial_test_rmse")
-            retrain_test_rmse = retrain_result.get("retrain_test_rmse")
             promoted = retrain_result.get("promoted", False)
+            model_replaced = retrain_result.get("model_replaced", False)
 
-            initial_test_result_df = retrain_result.get("initial_test_result_df")
-            retrain_test_result_df = retrain_result.get("retrain_test_result_df")
+            retrained_result_df = retrain_result.get("retrain_test_result_df")
+            retrained_rmse = retrain_result.get("retrain_test_rmse")
 
-            if initial_test_rmse is not None:
-                rmse_before = initial_test_rmse
+            rmse_after = retrained_rmse if retrained_rmse is not None else rmse_before
+            preview_after = _make_preview_rows(retrained_result_df, limit=PREVIEW_DAYS * 24)
+            analysis_result_df = retrained_result_df if isinstance(retrained_result_df, pd.DataFrame) else current_result_df
 
-            if retrain_test_rmse is not None:
-                rmse_after = retrain_test_rmse
-            else:
-                rmse_after = rmse_before
-
-            if isinstance(initial_test_result_df, pd.DataFrame) and not initial_test_result_df.empty:
-                preview_before = _make_preview_rows(initial_test_result_df)
-
-            if isinstance(retrain_test_result_df, pd.DataFrame) and not retrain_test_result_df.empty:
-                preview_after = _make_preview_rows(retrain_test_result_df)
-                analysis_result_df = retrain_test_result_df
-            else:
-                analysis_result_df = (
-                    initial_test_result_df
-                    if isinstance(initial_test_result_df, pd.DataFrame) and not initial_test_result_df.empty
-                    else current_result_df
-                )
-
-            if promoted and _candidate_files_exist():
+            if promoted and _candidate_files_exist() and not model_replaced:
                 training_status["candidate_model_exists"] = True
                 training_status["candidate_result"] = retrain_result
             else:
@@ -278,7 +380,28 @@ def run_prediction_and_monitor(input_df: pd.DataFrame):
         error_by_building_type=error_by_building_type,
     )
 
-    llm_report = generate_llm_report(report_payload)
+    try:
+        llm_report = generate_report(
+            eval_result={
+                "rmse": rmse_after,
+                "rmse_threshold": None,
+                "retrain_required": retrain_required,
+            },
+            preview_rows=preview_after,
+            error_by_building_type=error_by_building_type,
+            rmse_before=rmse_before,
+            rmse_after=rmse_after,
+            retrain_executed=retrain_executed,
+            model_replaced=model_replaced,
+        )
+    except Exception as e:
+        llm_report = {
+            "title": "전력 소비 예측 성능 분석 보고서",
+            "summary": "분석은 완료되었지만 LLM 보고서 생성 중 오류가 발생했습니다.",
+            "performance_analysis": f"RMSE before: {rmse_before}, RMSE after: {rmse_after}",
+            "building_type_analysis": "건물 유형별 오차 표를 확인해주세요.",
+            "action": f"LLM 보고서 생성 오류: {e}",
+        }
 
     return {
         "rmse": rmse_after,
@@ -293,6 +416,7 @@ def run_prediction_and_monitor(input_df: pd.DataFrame):
             candidate_model_exists=training_status["candidate_model_exists"],
             rmse_before=rmse_before,
             rmse_after=rmse_after,
+            auto_retrain=auto_retrain,
         ),
         "preview_before": preview_before,
         "preview_after": preview_after,
@@ -308,6 +432,26 @@ def run_retrain():
         return {"message": "이미 학습이 진행 중입니다."}
 
     base_train_df = pd.read_csv(TRAIN_PATH)
+    uploaded_input_df = latest_upload_context.get("input_df")
+    before_result_df = latest_upload_context.get("result_before")
+    before_rmse = latest_upload_context.get("rmse_before")
+
+    if isinstance(uploaded_input_df, pd.DataFrame):
+        building_df = pd.read_csv(BUILDING_PATH)
+        current_bundle = load_model_bundle()
+        before_result_df = predict_with_bundle(
+            input_df=uploaded_input_df.copy(),
+            train_df=base_train_df,
+            building_df=building_df,
+            model=current_bundle[0],
+            scaler_x=current_bundle[1],
+            scaler_y=current_bundle[2],
+            feature_cols=current_bundle[3],
+            building_categories=current_bundle[4],
+            seq_len=current_bundle[5],
+        )
+        before_rmse = evaluate(before_result_df)
+        _set_latest_upload_context(uploaded_input_df, before_result_df, before_rmse)
 
     def _run():
         try:
@@ -321,10 +465,25 @@ def run_retrain():
             training_status["candidate_result"] = None
             training_status["error"] = None
 
-            result = retrain(train_df=base_train_df, status_dict=training_status)
+            result = retrain(upload_df=uploaded_input_df.copy(), status_dict=training_status)
 
-            training_status["last_result"] = result
-            training_status["candidate_result"] = result
+            after_result_df = result.get("retrain_test_result_df")
+            after_rmse = result.get("retrain_test_rmse")
+
+            training_status["last_result"] = {
+                **result,
+                "rmse_before": before_rmse,
+                "rmse_after": after_rmse,
+                "preview_before": _make_preview_rows(before_result_df, limit=PREVIEW_DAYS * 24),
+                "preview_after": _make_preview_rows(after_result_df, limit=PREVIEW_DAYS * 24),
+                "error_by_building_type": _make_error_by_building_type(after_result_df)
+                if isinstance(after_result_df, pd.DataFrame)
+                else [],
+                "kpi": _make_kpi(after_result_df)
+                if isinstance(after_result_df, pd.DataFrame)
+                else _make_kpi(pd.DataFrame()),
+            }
+            training_status["candidate_result"] = training_status["last_result"]
             training_status["candidate_model_exists"] = bool(result.get("promoted", False)) and _candidate_files_exist()
             training_status["progress_pct"] = 100.0
             training_status["stage"] = "completed"
@@ -339,7 +498,7 @@ def run_retrain():
 
 
 def get_retrain_status():
-    return training_status
+    return _to_plain_value(training_status)
 
 
 def _backup_if_exists(path):

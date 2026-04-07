@@ -12,6 +12,8 @@
   --primary-soft: rgba(37, 99, 235, 0.1);
   --success: #16a34a;
   --warning: #f59e0b;
+  --sidebar-width: 280px;
+  --overview-gap: 28px;
 }
 
 html,
@@ -85,8 +87,8 @@ body {
 /* 전체 본문은 박스 없이 페이지처럼 */
 .overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) var(--sidebar-width);
+  gap: var(--overview-gap);
   align-items: start;
 }
 
@@ -122,14 +124,14 @@ body {
 /* 차트 */
 .chart-compare.modern {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 28px;
 }
 
 .chart-box {
   background: transparent;
   border-radius: 0;
-  padding: 0;
+  padding: 0 0 8px;
   border: none;
 }
 
@@ -140,9 +142,16 @@ body {
   color: #334155;
 }
 
+.chart-caption {
+  margin: 0 0 14px;
+  color: var(--sub);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .chart-canvas-wrap {
   position: relative;
-  height: 300px;
+  height: 460px;
   width: 100%;
   background: transparent;
   border: none;
@@ -396,6 +405,15 @@ th {
   margin-top: 28px;
 }
 
+.upload-toolbar,
+.flow-line-section,
+.approval-strip,
+.table-section,
+.report-page {
+  width: calc(100% - (var(--sidebar-width) + var(--overview-gap)));
+  margin-right: auto;
+}
+
 .modern-pipeline {
   display: flex;
   align-items: center;
@@ -558,8 +576,12 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .chart-compare.modern {
-    grid-template-columns: 1fr;
+  .upload-toolbar,
+  .flow-line-section,
+  .approval-strip,
+  .table-section,
+  .report-page {
+    width: 100%;
   }
 
   .approval-strip {
@@ -587,7 +609,7 @@ th {
   }
 
   .chart-canvas-wrap {
-    height: 250px;
+    height: 300px;
   }
 
   .report-document-header h3 {

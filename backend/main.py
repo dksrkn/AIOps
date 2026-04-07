@@ -1,5 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from pathlib import Path
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import math
+import numpy as np
 import pandas as pd
 
 from backend.service import (
@@ -12,6 +17,7 @@ from backend.service import (
 )
 
 app = FastAPI(title="Energy AIOps API", version="1.0.0")
+PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 
 
 def sanitize_for_json(obj):
@@ -20,6 +26,15 @@ def sanitize_for_json(obj):
 
     if isinstance(obj, list):
         return [sanitize_for_json(v) for v in obj]
+
+    if isinstance(obj, tuple):
+        return [sanitize_for_json(v) for v in obj]
+
+    if isinstance(obj, Path):
+        return str(obj)
+
+    if isinstance(obj, np.generic):
+        return obj.item()
 
     if isinstance(obj, pd.Timestamp):
         return obj.isoformat()
@@ -33,6 +48,11 @@ def sanitize_for_json(obj):
 
 @app.get("/")
 def root():
+    return FileResponse(PUBLIC_DIR / "index.html")
+
+
+@app.get("/health")
+def health():
     return {"message": "AIOps running"}
 
 
@@ -57,9 +77,9 @@ async def predict_monitor_api(file: UploadFile = File(...)):
 
 
 @app.post("/upload")
-async def upload_api(file: UploadFile = File(...)):
+async def upload_api(file: UploadFile = File(...), auto_retrain: bool = Form(False)):
     df = pd.read_csv(file.file)
-    result = run_prediction_and_monitor(df)
+    result = run_prediction_and_monitor(df, auto_retrain=auto_retrain)
 
     response = {
         "rmse": result.get("rmse"),
@@ -105,3 +125,7 @@ def approve_api():
         )
 
     return sanitize_for_json(result)
+
+
+app.mount("/css", StaticFiles(directory=PUBLIC_DIR / "css"), name="css")
+app.mount("/js", StaticFiles(directory=PUBLIC_DIR / "js"), name="js")

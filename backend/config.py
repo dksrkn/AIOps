@@ -9,6 +9,9 @@ ARTIFACTS_DIR = BASE_DIR / "artifacts"
 TRAIN_PATH = DATA_DIR / "train.csv"
 BUILDING_PATH = DATA_DIR / "building_info.csv"
 TEST_PATH = DATA_DIR / "test.csv"
+TRAIN40_PATH = DATA_DIR / "train40.csv"
+TEST20_1_PATH = DATA_DIR / "test20_1.csv"
+TEST20_2_PATH = DATA_DIR / "test20_2.csv"
 
 TRAIN60_SPLIT_PATH = DATA_DIR / "train60_split.csv"
 VALID20_SPLIT_PATH = DATA_DIR / "valid20_split.csv"
@@ -40,9 +43,16 @@ EPOCHS = 15
 PATIENCE = 4
 LEARNING_RATE = 5e-4
 
+# Temporary fast-path for retrain flow verification.
+QUICK_RETRAIN_MODE = True
+QUICK_RETRAIN_EPOCHS = 1
+QUICK_RETRAIN_TRAIN_ROWS_PER_BUILDING = 96
+QUICK_RETRAIN_EVAL_ROWS_PER_BUILDING = 48
+
 RMSE_THRESHOLD = 250.0
 MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 RANDOM_SEED = 40
+PREVIEW_DAYS = 5
 
 for p in [DATA_DIR, MODELS_DIR, ARTIFACTS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
