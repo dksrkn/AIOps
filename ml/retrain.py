@@ -9,10 +9,15 @@ from backend.config import (
     QUICK_RETRAIN_EVAL_ROWS_PER_BUILDING,
     TRAIN40_PATH,
     TEST20_2_PATH,
+    CANDIDATE_MODEL_STATE_PATH,
+    CANDIDATE_FEATURE_SCALER_PATH,
+    CANDIDATE_TARGET_SCALER_PATH,
+    CANDIDATE_METADATA_PATH,
 )
+from ml.evaluate import evaluate
+from ml.predict import load_model_bundle_from_paths, predict_with_bundle
 from ml.train import (
     fit_model_on_split,
-    evaluate_bundle_on_raw,
     save_model_artifacts,
     load_model_metadata,
 )
@@ -91,20 +96,7 @@ def retrain(upload_df: pd.DataFrame, status_dict=None):
         status_dict["stage"] = "final_model_save"
         status_dict["progress_pct"] = 95.0
 
-    test20_2_rmse, test20_2_result_df = evaluate_bundle_on_raw(
-        bundle=retrain_bundle,
-        raw_eval_df=test20_2_df,
-        feature_cols=feature_cols,
-    )
-
-    plot_path = save_avg_actual_vs_predicted_plot(
-        df=test20_2_result_df,
-        save_path=PLOTS_DIR / f"retrained_uploaded_test20_2_avg_{timestamp}.png",
-        title="Retrained Model - Test20_2 Actual vs Predicted",
-    )
-
     metadata = retrain_bundle["metadata"].copy()
-    metadata["baseline_rmse"] = test20_2_rmse
     metadata["model_stage"] = (
         "retrained_train40_plus_uploaded_quick"
         if QUICK_RETRAIN_MODE
@@ -116,6 +108,48 @@ def retrain(upload_df: pd.DataFrame, status_dict=None):
         retrain_bundle["scaler_x"],
         retrain_bundle["scaler_y"],
         metadata,
+        model_path=CANDIDATE_MODEL_STATE_PATH,
+        feature_scaler_path=CANDIDATE_FEATURE_SCALER_PATH,
+        target_scaler_path=CANDIDATE_TARGET_SCALER_PATH,
+        metadata_path=CANDIDATE_METADATA_PATH,
+    )
+
+    candidate_bundle = load_model_bundle_from_paths(
+        CANDIDATE_MODEL_STATE_PATH,
+        CANDIDATE_FEATURE_SCALER_PATH,
+        CANDIDATE_TARGET_SCALER_PATH,
+        CANDIDATE_METADATA_PATH,
+    )
+    building_df = pd.read_csv(BUILDING_PATH)
+    test20_2_result_df = predict_with_bundle(
+        input_df=test20_2_df.copy(),
+        train_df=retrain_train_df,
+        building_df=building_df,
+        model=candidate_bundle[0],
+        scaler_x=candidate_bundle[1],
+        scaler_y=candidate_bundle[2],
+        feature_cols=candidate_bundle[3],
+        building_categories=candidate_bundle[4],
+        seq_len=candidate_bundle[5],
+    )
+    test20_2_rmse = evaluate(test20_2_result_df)
+
+    metadata["baseline_rmse"] = test20_2_rmse
+    save_model_artifacts(
+        retrain_bundle["model"],
+        retrain_bundle["scaler_x"],
+        retrain_bundle["scaler_y"],
+        metadata,
+        model_path=CANDIDATE_MODEL_STATE_PATH,
+        feature_scaler_path=CANDIDATE_FEATURE_SCALER_PATH,
+        target_scaler_path=CANDIDATE_TARGET_SCALER_PATH,
+        metadata_path=CANDIDATE_METADATA_PATH,
+    )
+
+    plot_path = save_avg_actual_vs_predicted_plot(
+        df=test20_2_result_df,
+        save_path=PLOTS_DIR / f"retrained_uploaded_test20_2_avg_{timestamp}.png",
+        title="Retrained Model - Test20_2 Actual vs Predicted",
     )
 
     if status_dict is not None:
@@ -125,7 +159,7 @@ def retrain(upload_df: pd.DataFrame, status_dict=None):
     return {
         "status": "completed",
         "promoted": True,
-        "model_replaced": True,
+        "model_replaced": False,
         "retrain_test_rmse": test20_2_rmse,
         "active_rmse": test20_2_rmse,
         "retrain_test_result_df": test20_2_result_df,

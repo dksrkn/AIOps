@@ -415,12 +415,21 @@ def evaluate_bundle_on_raw(bundle, raw_eval_df, feature_cols):
     return rmse, result_df
 
 
-def save_model_artifacts(model, scaler_x, scaler_y, metadata: dict):
-    torch.save(model.state_dict(), MODEL_STATE_PATH)
-    joblib.dump(scaler_x, FEATURE_SCALER_PATH)
-    joblib.dump(scaler_y, TARGET_SCALER_PATH)
+def save_model_artifacts(
+    model,
+    scaler_x,
+    scaler_y,
+    metadata: dict,
+    model_path=MODEL_STATE_PATH,
+    feature_scaler_path=FEATURE_SCALER_PATH,
+    target_scaler_path=TARGET_SCALER_PATH,
+    metadata_path=METADATA_PATH,
+):
+    torch.save(model.state_dict(), model_path)
+    joblib.dump(scaler_x, feature_scaler_path)
+    joblib.dump(scaler_y, target_scaler_path)
 
-    with open(METADATA_PATH, "w", encoding="utf-8") as f:
+    with open(metadata_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
 
 

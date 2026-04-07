@@ -8,6 +8,7 @@ const rmseBeforeValue = document.getElementById("rmseBeforeValue");
 const rmseAfterValue = document.getElementById("rmseAfterValue");
 const rmseDeltaValue = document.getElementById("rmseDeltaValue");
 const retrainStatus = document.getElementById("retrainStatus");
+const candidateStatusMeta = document.getElementById("candidateStatusMeta");
 const summaryMessage = document.getElementById("summaryMessage");
 const retrainMessage = document.getElementById("retrainMessage");
 
@@ -47,6 +48,19 @@ function formatSignedDelta(value, digits = 2) {
   if (!Number.isFinite(numeric)) return "-";
   const sign = numeric > 0 ? "+" : "";
   return `${sign}${formatNumber(numeric, digits)}`;
+}
+
+function getCandidateStatusText(data) {
+  if (data.retrain_required && data.retrain_executed && data.model_replaced) {
+    return "운영 반영 완료";
+  }
+  if (data.retrain_required && data.retrain_executed) {
+    return "후보 모델 생성됨";
+  }
+  if (data.retrain_required) {
+    return "재학습 필요";
+  }
+  return "후보 모델 없음";
 }
 
 function resetSteps() {
@@ -149,7 +163,9 @@ function renderSingleChart(canvasId, data, chartInstance, titleSuffix) {
         {
           label: "Actual",
           data: actual,
-          borderWidth: 2.5,
+          borderColor: "#0f172a",
+          backgroundColor: "rgba(15, 23, 42, 0.12)",
+          borderWidth: 3,
           tension: 0.35,
           pointRadius: 0,
           pointHoverRadius: 4
@@ -157,7 +173,9 @@ function renderSingleChart(canvasId, data, chartInstance, titleSuffix) {
         {
           label: "Predicted",
           data: predicted,
-          borderWidth: 2.5,
+          borderColor: "#0f766e",
+          backgroundColor: "rgba(15, 118, 110, 0.16)",
+          borderWidth: 3,
           tension: 0.35,
           pointRadius: 0,
           pointHoverRadius: 4
@@ -173,16 +191,29 @@ function renderSingleChart(canvasId, data, chartInstance, titleSuffix) {
       },
       plugins: {
         legend: {
-          position: "top"
+          position: "top",
+          labels: {
+            color: "#334155",
+            boxWidth: 14,
+            usePointStyle: true
+          }
         },
         title: {
           display: true,
-          text: `Prediction ${titleSuffix}`
+          text: `Prediction ${titleSuffix}`,
+          color: "#0f172a"
         }
       },
       scales: {
         x: {
+          grid: {
+            color: "rgba(148, 163, 184, 0.22)"
+          },
+          border: {
+            color: "rgba(148, 163, 184, 0.28)"
+          },
           ticks: {
+            color: "#475569",
             maxRotation: 0,
             autoSkip: true,
             maxTicksLimit: 6,
@@ -195,11 +226,19 @@ function renderSingleChart(canvasId, data, chartInstance, titleSuffix) {
           },
           title: {
             display: true,
-            text: "Datetime"
+            text: "Datetime",
+            color: "#64748b"
           }
         },
         y: {
+          grid: {
+            color: "rgba(148, 163, 184, 0.22)"
+          },
+          border: {
+            color: "rgba(148, 163, 184, 0.28)"
+          },
           ticks: {
+            color: "#475569",
             callback(value) {
               return Number(value).toLocaleString("ko-KR");
             }
@@ -404,7 +443,7 @@ async function fetchRetrainStatus() {
 
 function stopRetrainPolling() {
   if (retrainPollTimer) {
-    clearInterval(retrainPollTimer);
+    clearTimeout(retrainPollTimer);
     retrainPollTimer = null;
   }
 }
@@ -429,7 +468,7 @@ function formatRetrainStage(status) {
 async function pollRetrainUntilDone() {
   stopRetrainPolling();
 
-  retrainPollTimer = setInterval(async () => {
+  async function pollOnce() {
     try {
       const status = await fetchRetrainStatus();
       const progress = Number(status.progress_pct || 0).toFixed(0);
@@ -446,6 +485,7 @@ async function pollRetrainUntilDone() {
       }
 
       if (status.running) {
+        retrainPollTimer = setTimeout(pollOnce, 2000);
         return;
       }
 
@@ -458,17 +498,18 @@ async function pollRetrainUntilDone() {
             ...status.last_result,
             retrain_required: true,
             retrain_executed: true,
-            model_replaced: true
+            model_replaced: Boolean(status.last_result.model_replaced)
           };
           fillResult(latestResult);
         }
 
         setStep("retrain", "done");
-        if (retrainStatus) retrainStatus.textContent = "재학습 완료";
-        if (retrainMessage) retrainMessage.textContent = "재학습이 완료되어 운영 모델에 반영되었습니다.";
+        if (retrainStatus) retrainStatus.textContent = "후보 모델 생성 완료";
+        if (candidateStatusMeta) candidateStatusMeta.textContent = "승인 전 · current model 유지";
+        if (retrainMessage) retrainMessage.textContent = "재학습이 완료되었습니다. 아직 운영 모델은 교체되지 않았습니다.";
         if (uploadStatus) uploadStatus.textContent = "재학습 완료";
         if (summaryMessage) {
-          summaryMessage.textContent = "재학습이 완료되었습니다. 최신 모델이 저장되었습니다.";
+          summaryMessage.textContent = "재학습 후보 모델이 생성되었습니다.";
         }
         hideApprovalSection();
         return;
@@ -495,7 +536,9 @@ async function pollRetrainUntilDone() {
       if (approveBtn) approveBtn.disabled = false;
       if (rejectBtn) rejectBtn.disabled = false;
     }
-  }, 2000);
+  }
+
+  retrainPollTimer = setTimeout(pollOnce, 0);
 }
 
 function fillResult(data) {
@@ -511,6 +554,7 @@ function fillResult(data) {
   if (rmseBeforeValue) rmseBeforeValue.textContent = formatNumber(beforeRmse, 2);
   if (rmseAfterValue) rmseAfterValue.textContent = formatNumber(afterRmse, 2);
   if (rmseDeltaValue) rmseDeltaValue.textContent = formatSignedDelta(rmseDelta, 2);
+  if (candidateStatusMeta) candidateStatusMeta.textContent = getCandidateStatusText(data);
   if (retrainStatus) {
     if (data.retrain_required && data.retrain_executed && data.model_replaced) {
       retrainStatus.textContent = "재학습 완료";
@@ -522,12 +566,14 @@ function fillResult(data) {
       retrainStatus.textContent = "재학습 없음";
     }
   }
-  if (summaryMessage) summaryMessage.textContent = data.message || "-";
+  if (summaryMessage) {
+    summaryMessage.textContent = data.message || "-";
+  }
   if (retrainMessage) {
     if (data.retrain_required && data.retrain_executed && data.model_replaced) {
       retrainMessage.textContent = "재학습이 완료되어 운영 모델에 반영되었습니다.";
     } else if (data.retrain_required && data.retrain_executed) {
-      retrainMessage.textContent = "재학습 완료 · 운영 반영 대기";
+      retrainMessage.textContent = "후보 모델 생성 완료 · 운영 반영 대기";
     } else if (data.retrain_required) {
       retrainMessage.textContent = "재학습 여부를 선택해주세요.";
     } else {
@@ -634,7 +680,7 @@ if (approveBtn) {
           summaryMessage.textContent = "재학습을 백그라운드에서 시작합니다.";
         }
         if (retrainMessage) {
-          retrainMessage.textContent = "재학습 시작 요청을 전송했습니다.";
+          retrainMessage.textContent = "후보 모델 생성을 시작했습니다.";
         }
         if (approvalMessage) {
           approvalMessage.textContent = "재학습이 시작되었습니다. 진행률을 확인하는 중입니다.";
@@ -649,6 +695,7 @@ if (approveBtn) {
       await approveModel();
 
       if (retrainStatus) retrainStatus.textContent = "모델 교체 완료";
+      if (candidateStatusMeta) candidateStatusMeta.textContent = "후보 모델 승인됨";
       if (summaryMessage) {
         summaryMessage.textContent = "재학습 모델이 승인되어 운영 모델로 교체되었습니다.";
       }
@@ -689,7 +736,8 @@ if (rejectBtn) {
       return;
     }
 
-    if (retrainStatus) retrainStatus.textContent = "운영 반영 보류";
+      if (retrainStatus) retrainStatus.textContent = "운영 반영 보류";
+      if (candidateStatusMeta) candidateStatusMeta.textContent = "후보 모델 유지";
     if (summaryMessage) {
       summaryMessage.textContent = "재학습 결과는 생성되었지만 운영 모델 교체는 보류되었습니다.";
     }

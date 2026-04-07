@@ -12,30 +12,52 @@
       <header class="topbar">
         <div class="topbar-left">
           <h1>스마트 에너지 수요 관리</h1>
+          <p class="topbar-subtitle">전력 예측 · 재학습 비교 · 운영 반영 모니터링</p>
         </div>
         <div class="topbar-right">
-          <span class="topbar-status">가지배귤 🍆🍐🍊</span>
+          <span class="topbar-status"><span class="status-signal"></span>실시간 분석 대시보드</span>
         </div>
       </header>
 
       <section class="overview-grid">
         <section class="main-chart-area">
-          <div class="section-title-row">
-            <h2>결과 시각화</h2>
+          <div class="section-title-row stacked">
+            <div>
+              <h2>결과 시각화</h2>
+              <p class="section-subtitle">현재 모델과 재학습 후보 모델의 예측 결과 비교</p>
+            </div>
+            <div class="comparison-badge">5일 미리보기</div>
+          </div>
+
+          <div class="compare-explainer">
+            <div class="compare-card before">
+              <span class="compare-kicker">Current</span>
+              <strong>Before</strong>
+              <span class="compare-meta">운영 모델 · test20_1</span>
+            </div>
+            <div class="compare-card after">
+              <span class="compare-kicker">Candidate</span>
+              <strong>After</strong>
+              <span class="compare-meta">후보 모델 · test20_2</span>
+            </div>
           </div>
 
           <div class="chart-compare modern">
             <div class="chart-box">
-              <h3>Before</h3>
-              <p class="chart-caption">업로드한 테스트 데이터에 대한 현재 운영 모델 예측 결과</p>
+              <div class="chart-header">
+                <h3>Before</h3>
+                <span class="chart-tag">Dataset: test20_1</span>
+              </div>
               <div class="chart-canvas-wrap">
                 <canvas id="chartBefore"></canvas>
               </div>
             </div>
 
             <div class="chart-box">
-              <h3>After</h3>
-              <p class="chart-caption">train40 + 업로드 데이터 재학습 후 test20_2 평가 결과</p>
+              <div class="chart-header">
+                <h3>After</h3>
+                <span class="chart-tag">Dataset: test20_2</span>
+              </div>
               <div class="chart-canvas-wrap">
                 <canvas id="chartAfter"></canvas>
               </div>
@@ -46,18 +68,22 @@
             <div class="metric-chip">
               <span class="metric-label">Before RMSE</span>
               <strong id="rmseBeforeValue">-</strong>
+              <small class="metric-meta">test20_1</small>
             </div>
             <div class="metric-chip">
               <span class="metric-label">After RMSE</span>
               <strong id="rmseAfterValue">-</strong>
+              <small class="metric-meta">test20_2</small>
             </div>
             <div class="metric-chip">
-              <span class="metric-label">RMSE 변화</span>
+              <span class="metric-label">Delta</span>
               <strong id="rmseDeltaValue">-</strong>
+              <small class="metric-meta">After - Before</small>
             </div>
             <div class="metric-chip">
               <span class="metric-label">상태</span>
               <strong id="retrainStatus">-</strong>
+              <small class="metric-meta" id="candidateStatusMeta">candidate</small>
             </div>
           </div>
 

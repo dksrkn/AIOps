@@ -3,17 +3,29 @@
 }
 
 :root {
-  --bg: #f5f7fb;
-  --surface-soft: #f8fafc;
-  --line: rgba(15, 23, 42, 0.08);
-  --text: #0f172a;
-  --sub: #64748b;
-  --primary: #2563eb;
-  --primary-soft: rgba(37, 99, 235, 0.1);
-  --success: #16a34a;
+  --bg-top: #08131e;
+  --bg-mid: #0d1f2f;
+  --bg-bottom: #edf6f2;
+  --surface: rgba(255, 255, 255, 0.96);
+  --surface-soft: rgba(245, 252, 249, 0.92);
+  --panel-dark: #0d2233;
+  --panel-dark-soft: #122b3f;
+  --line: rgba(148, 163, 184, 0.18);
+  --line-strong: rgba(45, 212, 191, 0.32);
+  --text: #112031;
+  --sub: #60748a;
+  --primary: #14b8a6;
+  --primary-deep: #0f766e;
+  --primary-soft: rgba(20, 184, 166, 0.12);
+  --electric: #38bdf8;
+  --electric-soft: rgba(56, 189, 248, 0.14);
+  --success: #22c55e;
   --warning: #f59e0b;
-  --sidebar-width: 280px;
-  --overview-gap: 28px;
+  --shadow-soft: 0 18px 45px rgba(2, 12, 27, 0.12);
+  --shadow-panel: 0 20px 50px rgba(8, 19, 30, 0.24);
+  --sidebar-width: 320px;
+  --overview-gap: 24px;
+  --content-max: 1360px;
 }
 
 html,
@@ -23,68 +35,121 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   color: var(--text);
-  background: #ffffff;
+  background:
+    linear-gradient(180deg, var(--bg-top) 0, var(--bg-mid) 360px, var(--bg-bottom) 361px, #f7faf9 100%);
+  min-height: 100vh;
 }
 
 .page-shell {
   width: 100%;
+  position: relative;
+  overflow-x: clip;
+}
+
+.page-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  pointer-events: none;
+  opacity: 0.45;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.7), transparent 70%);
 }
 
 .app-page {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 22px 24px 40px;
+  padding: 22px 24px 48px;
 }
 
-/* 상단 바만 카드 느낌 유지 */
 .topbar {
-  height: 84px;
-  background: #f7f9fc;
-  border-radius: 18px;
-  padding: 0 28px;
+  min-height: 112px;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.2), transparent 28%),
+    linear-gradient(135deg, rgba(9, 25, 40, 0.96), rgba(13, 34, 51, 0.92));
+  border-radius: 26px;
+  padding: 26px 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  inset: auto -80px 14px 40%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.6), transparent);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
 }
 
 .topbar-left {
   display: flex;
   flex-direction: column;
   justify-content: center;
-}
-
-.topbar-badge {
-  margin: 0 0 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--primary);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 28px;
-  line-height: 1.1;
-  font-weight: 700;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.08;
+  font-weight: 800;
+  color: #f7fffd;
+  letter-spacing: -0.03em;
+}
+
+.topbar-subtitle {
+  margin: 10px 0 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .topbar-status {
   display: inline-flex;
   align-items: center;
-  height: 38px;
-  padding: 0 14px;
+  gap: 10px;
+  height: 42px;
+  padding: 0 16px;
   border-radius: 999px;
-  background: #e9edff;
-  color: #4338ca;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dffaf6;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  position: relative;
+  z-index: 1;
 }
 
-/* 전체 본문은 박스 없이 페이지처럼 */
+.status-signal {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
+  animation: pulse 1.9s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.42); }
+  70% { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--sidebar-width);
@@ -99,10 +164,11 @@ body {
 .approval-strip,
 .table-section,
 .report-page {
-  background: transparent;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 0;
+  background: var(--surface);
+  border-radius: 26px;
+  box-shadow: var(--shadow-soft);
+  padding: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .section-title-row {
@@ -110,6 +176,81 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
+}
+
+.section-title-row.stacked {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.section-subtitle {
+  margin: 8px 0 0;
+  color: var(--sub);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.comparison-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(56, 189, 248, 0.12));
+  color: var(--primary-deep);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--line-strong);
+}
+
+.compare-explainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.compare-card {
+  padding: 18px 18px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(240, 251, 249, 0.96));
+  position: relative;
+  overflow: hidden;
+}
+
+.compare-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--electric), var(--primary));
+}
+
+.compare-kicker {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: var(--primary-deep);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.compare-card strong {
+  display: block;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.compare-meta {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--sub);
+  font-size: 14px;
 }
 
 .section-title-row h2,
@@ -131,31 +272,45 @@ body {
 .chart-box {
   background: transparent;
   border-radius: 0;
-  padding: 0 0 8px;
+  padding: 0;
   border: none;
+  box-shadow: none;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .chart-box h3 {
-  margin: 0 0 10px;
-  font-size: 16px;
+  margin: 0;
+  font-size: 18px;
   font-weight: 700;
-  color: #334155;
+  color: #f1f5f9;
 }
 
-.chart-caption {
-  margin: 0 0 14px;
-  color: var(--sub);
-  font-size: 14px;
-  line-height: 1.5;
+.chart-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #d6f4ff;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .chart-canvas-wrap {
   position: relative;
-  height: 460px;
+  height: clamp(280px, 34vw, 450px);
   width: 100%;
   background: transparent;
   border: none;
   border-radius: 0;
+  padding: 0;
 }
 
 .chart-box canvas {
@@ -164,20 +319,22 @@ body {
 }
 
 .result-summary-inline {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   margin-top: 18px;
 }
 
 .metric-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241, 248, 246, 0.98));
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 16px 18px;
+  min-height: 92px;
 }
 
 .metric-label {
@@ -187,18 +344,23 @@ body {
 }
 
 .metric-chip strong {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 800;
   color: var(--text);
+}
+
+.metric-meta {
+  color: var(--sub);
+  font-size: 12px;
 }
 
 .summary-message-inline {
   margin-top: 14px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: transparent;
-  border: 1px solid var(--line);
-  color: #334155;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(20,184,166,0.08), rgba(56,189,248,0.08));
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  color: #24506d;
   line-height: 1.6;
 }
 
@@ -214,9 +376,20 @@ body {
 }
 
 .kpi-item {
-  background: transparent;
-  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245, 252, 249, 0.96));
+  border-radius: 18px;
   padding: 14px 16px;
+  border: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--electric), var(--primary));
 }
 
 .kpi-name {
@@ -238,28 +411,41 @@ body {
 .upload-toolbar {
   margin-top: 24px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.ghost-upload-btn {
-  height: 38px;
-  padding: 0 14px;
+#uploadBtn,
+#analyzeBtn,
+#approveBtn,
+#rejectBtn {
+  height: 42px;
+  padding: 0 18px;
   border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--electric), var(--primary-deep));
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 10px 20px rgba(20, 184, 166, 0.18);
 }
 
-.ghost-upload-btn:hover {
+#rejectBtn {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  box-shadow: none;
+}
+
+#uploadBtn:hover,
+#analyzeBtn:hover,
+#approveBtn:hover,
+#rejectBtn:hover {
   transform: translateY(-1px);
 }
 
 .upload-dropdown {
-  margin-top: 12px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -271,34 +457,19 @@ body {
   align-items: center;
   padding: 10px 14px;
   border-radius: 10px;
-  background: transparent;
-  border: 1px solid #cfe0ff;
-  color: var(--primary);
+  background: rgba(20, 184, 166, 0.08);
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  color: var(--primary-deep);
   font-weight: 700;
   cursor: pointer;
 }
 
 input[type="file"] {
   padding: 10px;
-  background: transparent;
+  background: rgba(255,255,255,0.92);
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--text);
-}
-
-button {
-  height: 38px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: #ffffff;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-button:hover {
-  transform: translateY(-1px);
 }
 
 .status-inline {
@@ -318,7 +489,7 @@ button:hover {
   height: 10px;
   border-radius: 50%;
   background: var(--primary);
-  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 6px rgba(20, 184, 166, 0.12);
 }
 
 /* 섹션 간 구분선 */
@@ -327,22 +498,13 @@ button:hover {
 .table-section,
 .report-page {
   position: relative;
-  padding-top: 26px;
-  margin-top: 26px;
+  margin-top: 24px;
 }
 
-/* overview 아래도 자연스럽게 구분 */
-.overview-grid {
-  padding-bottom: 26px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-/* 처리 흐름은 살짝 배경 톤 차이 */
 .modern-pipeline {
   padding: 14px 0 2px;
 }
 
-/* 테이블 헤더 구분 강화 */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -354,7 +516,6 @@ th {
   border-bottom: 1px solid rgba(15, 23, 42, 0.1);
 }
 
-/* 보고서 시작부 강조 */
 .report-document-header {
   padding-bottom: 18px;
   margin-bottom: 22px;
@@ -372,37 +533,8 @@ th {
   padding-bottom: 0;
 }
 
-/* KPI도 완전 박스보다 줄 구분 느낌으로 */
-.kpi-item {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 0;
-  padding: 12px 0 14px;
-}
-
-.kpi-item:last-child {
-  border-bottom: none;
-}
-
-/* 차트 영역도 얇은 상하 라인만 */
-.main-chart-area {
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-/* summary 메시지 박스감 줄이고 라인형으로 */
-.summary-message-inline {
-  margin-top: 14px;
-  padding: 14px 0 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-}
-
-/* 처리 흐름 */
 .flow-line-section {
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .upload-toolbar,
@@ -427,7 +559,7 @@ th {
   padding: 10px 14px;
   text-align: center;
   border-radius: 999px;
-  background: transparent;
+  background: rgba(255,255,255,0.9);
   color: #475569;
   font-weight: 700;
   border: 1px solid var(--line);
@@ -441,9 +573,9 @@ th {
 }
 
 .step.active {
-  background: var(--primary-soft);
-  color: var(--primary);
-  border-color: rgba(37, 99, 235, 0.16);
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--primary-deep);
+  border-color: rgba(20, 184, 166, 0.18);
 }
 
 .step.done {
@@ -461,13 +593,13 @@ th {
 /* 승인 */
 .approval-strip {
   margin-top: 24px;
-  padding: 14px 0;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(20,184,166,0.08), rgba(56,189,248,0.08));
+  border: 1px solid rgba(56, 189, 248, 0.16);
 }
 
 .approval-text {
@@ -484,7 +616,7 @@ th {
 
 /* 테이블 */
 .table-section {
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .table-wrap {
@@ -513,12 +645,12 @@ th {
 
 /* 보고서 */
 .report-page {
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .report-document {
-  background: white;
-  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #fbfefd);
+  border-radius: 20px;
   padding: 28px 32px;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
 }
@@ -576,6 +708,14 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .compare-explainer {
+    grid-template-columns: 1fr;
+  }
+
+  .result-summary-inline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .upload-toolbar,
   .flow-line-section,
   .approval-strip,
@@ -596,8 +736,7 @@ th {
   }
 
   .topbar {
-    height: auto;
-    min-height: 84px;
+    min-height: 0;
     padding: 18px 20px;
     flex-direction: column;
     align-items: flex-start;
@@ -608,8 +747,21 @@ th {
     font-size: 24px;
   }
 
-  .chart-canvas-wrap {
-    height: 300px;
+  .upload-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .upload-dropdown {
+    width: 100%;
+  }
+
+  input[type="file"] {
+    width: 100%;
+  }
+
+  .result-summary-inline {
+    grid-template-columns: 1fr;
   }
 
   .report-document-header h3 {

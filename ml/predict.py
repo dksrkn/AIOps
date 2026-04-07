@@ -21,96 +21,6 @@ from ml.train import LSTMModel
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def _prepare_prediction_frame(df, train_df, building_df, feature_cols, building_categories):
-    df = df.copy()
-
-    if "건물유형" not in df.columns:
-        building_df = preprocess_building_info(building_df)
-        df = df.merge(building_df, on="건물번호", how="left")
-
-    if "datetime" not in df.columns:
-        df = add_time_features(df)
-
-    if not any(col.startswith("건물유형_") for col in df.columns):
-        df = add_building_dummies(df, building_categories)
-
-    if "lag1_kwh" not in df.columns:
-        df["lag1_kwh"] = np.nan
-
-    for col in feature_cols:
-        if col not in df.columns:
-            df[col] = 0
-
-        if df[col].dtype == bool:
-            df[col] = df[col].astype(int)
-
-        fill_value = df[col].median() if pd.api.types.is_numeric_dtype(df[col]) else 0
-        if pd.isna(fill_value):
-            fill_value = 0
-
-        df[col] = df[col].fillna(fill_value)
-
-    df = df.sort_values(["건물번호", "datetime"]).reset_index(drop=True)
-
-    last_kwh_map = (
-        train_df.sort_values(["건물번호", "일시"])
-        .groupby("건물번호")[TARGET_COL]
-        .last()
-        .to_dict()
-    )
-
-    return df, last_kwh_map
-
-
-def _seed_lag_feature(g, last_known_kwh):
-    lag_values = g["lag1_kwh"].astype(float).to_numpy(copy=True)
-    actual_values = g[TARGET_COL].astype(float).to_numpy(copy=True) if TARGET_COL in g.columns else np.full(len(g), np.nan)
-
-    previous_value = 0.0 if pd.isna(last_known_kwh) else float(last_known_kwh)
-
-    for i in range(len(g)):
-        if np.isnan(lag_values[i]):
-            lag_values[i] = previous_value
-
-        if not np.isnan(actual_values[i]):
-            previous_value = actual_values[i]
-        else:
-            previous_value = lag_values[i]
-
-    g = g.copy()
-    g["lag1_kwh"] = lag_values
-    return g
-
-
-def _predict_building_autoregressive(g, model, scaler_x, scaler_y, feature_cols, seq_len, last_known_kwh):
-    g = _seed_lag_feature(g, last_known_kwh)
-    g = g.copy()
-    g["pred_kwh"] = np.nan
-
-    for i in range(seq_len, len(g)):
-        window = g.iloc[i - seq_len:i].copy()
-        scaled_window = scaler_x.transform(window[feature_cols])
-        X_tensor = torch.tensor(
-            scaled_window[np.newaxis, :, :],
-            dtype=torch.float32,
-        ).to(DEVICE)
-
-        with torch.no_grad():
-            pred_scaled = model(X_tensor).detach().cpu().numpy().reshape(-1, 1)
-
-        pred_value = float(scaler_y.inverse_transform(pred_scaled).flatten()[0])
-        g.at[g.index[i], "pred_kwh"] = pred_value
-
-        next_idx = i + 1
-        if next_idx < len(g) and pd.isna(g.at[g.index[next_idx], "lag1_kwh"]):
-            current_actual = g.at[g.index[i], TARGET_COL] if TARGET_COL in g.columns else np.nan
-            g.at[g.index[next_idx], "lag1_kwh"] = (
-                float(current_actual) if pd.notna(current_actual) else pred_value
-            )
-
-    return g
-
-
 def load_model_bundle_from_paths(model_path, scaler_x_path, scaler_y_path, metadata_path):
     with open(metadata_path, "r", encoding="utf-8") as f:
         metadata = json.load(f)
@@ -146,41 +56,75 @@ def load_model_bundle():
 
 
 def predict_with_bundle(input_df, train_df, building_df, model, scaler_x, scaler_y, feature_cols, building_categories, seq_len):
-    df, last_kwh_map = _prepare_prediction_frame(
-        input_df,
-        train_df,
-        building_df,
-        feature_cols,
-        building_categories,
-    )
+    df = input_df.copy()
 
-    result_groups = []
+    # 이미 building_info가 붙은 데이터가 아니면 merge
+    if "건물유형" not in df.columns:
+        building_df = preprocess_building_info(building_df)
+        df = df.merge(building_df, on="건물번호", how="left")
 
-    for building_no, g in df.groupby("건물번호", sort=False):
-        g = g.sort_values("datetime").reset_index(drop=True)
+    # datetime 없으면 추가
+    if "datetime" not in df.columns:
+        df = add_time_features(df)
 
-        if len(g) <= seq_len:
-            g = g.copy()
-            g["pred_kwh"] = np.nan
-            result_groups.append(g)
-            continue
+    # 건물 더미 없으면 생성
+    if not any(col.startswith("건물유형_") for col in df.columns):
+        df = add_building_dummies(df, building_categories)
 
-        result_groups.append(
-            _predict_building_autoregressive(
-                g=g,
-                model=model,
-                scaler_x=scaler_x,
-                scaler_y=scaler_y,
-                feature_cols=feature_cols,
-                seq_len=seq_len,
-                last_known_kwh=float(last_kwh_map.get(building_no, 0.0)),
-            )
+    # lag1이 없으면 학습 데이터 마지막 값으로 생성
+    if "lag1_kwh" not in df.columns:
+        last_kwh_map = (
+            train_df.sort_values(["건물번호", "일시"])
+            .groupby("건물번호")[TARGET_COL]
+            .last()
+            .to_dict()
         )
+        df["lag1_kwh"] = df["건물번호"].map(last_kwh_map)
 
-    if not result_groups:
-        raise ValueError("예측할 데이터가 없습니다.")
+    for col in feature_cols:
+        if col not in df.columns:
+            df[col] = 0
 
-    return pd.concat(result_groups, ignore_index=True)
+        if df[col].dtype == bool:
+            df[col] = df[col].astype(int)
+
+        fill_value = df[col].median() if pd.api.types.is_numeric_dtype(df[col]) else 0
+        if pd.isna(fill_value):
+            fill_value = 0
+
+        df[col] = df[col].fillna(fill_value)
+
+    df = df.sort_values(["건물번호", "datetime"]).reset_index(drop=True)
+
+    df[feature_cols] = scaler_x.transform(df[feature_cols])
+
+    X = []
+    valid_indices = []
+
+    for _, g in df.groupby("건물번호"):
+        g = g.sort_values("datetime").reset_index()
+
+        for i in range(seq_len, len(g)):
+            X.append(g.iloc[i - seq_len:i][feature_cols].values)
+            valid_indices.append(g.iloc[i]["index"])
+
+    X = np.array(X, dtype=np.float32)
+
+    if len(X) == 0:
+        raise ValueError("예측할 시퀀스가 없습니다. 입력 데이터 길이가 seq_len보다 작을 수 있습니다.")
+
+    X_tensor = torch.tensor(X, dtype=torch.float32).to(DEVICE)
+
+    with torch.no_grad():
+        preds = model(X_tensor).detach().cpu().numpy().reshape(-1, 1)
+
+    preds = scaler_y.inverse_transform(preds).flatten()
+
+    result_df = df.copy()
+    result_df["pred_kwh"] = np.nan
+    result_df.loc[valid_indices, "pred_kwh"] = preds
+
+    return result_df
 
 def predict(input_df, train_df, building_df):
     model, scaler_x, scaler_y, feature_cols, building_categories, seq_len = load_model_bundle()
